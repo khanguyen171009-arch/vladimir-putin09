@@ -1,0 +1,1235 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RunTrack VN - Hệ Thống Theo Dõi Chạy Bộ & Quản Trị</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            orange: '#FF5722',
+                            orangeDark: '#E64A19',
+                            blue: '#0284C7',
+                            dark: '#0F172A'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased min-h-screen flex flex-col">
+
+    <!-- ========================================== -->
+    <!-- HỆ THỐNG THÔNG BÁO TOAST (THAY THẾ ALERT) -->
+    <!-- ========================================== -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
+
+    <!-- ========================================== -->
+    <!-- MODAL XÁC NHẬN TÙY CHỈNH (THAY CONFIRM)    -->
+    <!-- ========================================== -->
+    <div id="confirm-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl transform transition-all">
+            <div class="flex items-center gap-3 text-amber-600 mb-3">
+                <div class="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <h3 id="confirm-title" class="text-lg font-bold text-slate-800">Xác nhận thao tác</h3>
+            </div>
+            <p id="confirm-message" class="text-slate-600 text-sm mb-6 leading-relaxed">Bạn có chắc chắn muốn thực hiện hành động này?</p>
+            <div class="flex justify-end gap-3">
+                <button id="confirm-cancel-btn" class="px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition">Hủy bỏ</button>
+                <button id="confirm-ok-btn" class="px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-red-600 hover:bg-red-700 transition shadow-sm">Đồng ý</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- MÀN HÌNH ĐĂNG NHẬP / ĐĂNG KÝ               -->
+    <!-- ========================================== -->
+    <div id="auth-screen" class="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-slate-900 via-slate-800 to-orange-950">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-4xl w-full overflow-hidden grid grid-cols-1 md:grid-cols-12">
+            
+            <!-- Cột trái: Banner giới thiệu -->
+            <div class="md:col-span-5 bg-gradient-to-br from-orange-500 to-red-600 p-8 text-white flex flex-col justify-between relative overflow-hidden">
+                <div class="relative z-10">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-11 h-11 bg-white/20 backdrop-blur-md rounded-xl flex items-center justify-center text-2xl">
+                            <i class="fa-solid fa-person-running"></i>
+                        </div>
+                        <span class="text-2xl font-extrabold tracking-tight">RunTrack VN</span>
+                    </div>
+                    <h2 class="text-2xl md:text-3xl font-bold leading-tight mb-4">Chinh phục mọi cung đường chạy bộ!</h2>
+                    <p class="text-orange-100 text-sm leading-relaxed mb-6">
+                        Theo dõi thời gian thực, phân tích tốc độ Pace, cạnh tranh trên bảng xếp hạng và tham gia các thử thách cộng đồng sôi động.
+                    </p>
+                </div>
+
+                <!-- Gợi ý tài khoản dùng thử -->
+                <div class="relative z-10 bg-black/20 backdrop-blur-sm rounded-2xl p-4 text-xs space-y-2 border border-white/10">
+                    <p class="font-bold text-orange-200 uppercase tracking-wider"><i class="fa-solid fa-key mr-1"></i> Dành cho Quản trị viên:</p>
+                    <p>• Nhập mã bí mật <span class="font-mono bg-white/20 px-1.5 py-0.5 rounded font-bold text-white">171009</span> khi đăng ký để kích hoạt quyền Admin.</p>
+                    <p>• Hoặc đăng nhập nhanh tài khoản mẫu:<br>
+                       User: <span class="font-mono font-bold">admin@run.vn</span> | Pass: <span class="font-mono font-bold">123456</span>
+                    </p>
+                </div>
+
+                <!-- Họa tiết trang trí nền -->
+                <i class="fa-solid fa-shoe-prints absolute -bottom-6 -right-6 text-9xl text-white/10 rotate-12 pointer-events-none"></i>
+            </div>
+
+            <!-- Cột phải: Form Đăng nhập / Đăng ký -->
+            <div class="md:col-span-7 p-8 md:p-10 flex flex-col justify-center">
+                <!-- Tabs chuyển đổi -->
+                <div class="flex bg-slate-100 p-1.5 rounded-2xl mb-8">
+                    <button id="tab-login-btn" onclick="switchAuthTab('login')" class="flex-1 py-2.5 text-sm font-bold rounded-xl bg-white text-slate-900 shadow-sm transition">
+                        Đăng Nhập
+                    </button>
+                    <button id="tab-register-btn" onclick="switchAuthTab('register')" class="flex-1 py-2.5 text-sm font-bold rounded-xl text-slate-500 hover:text-slate-800 transition">
+                        Đăng Ký Mới
+                    </button>
+                </div>
+
+                <!-- Form Đăng Nhập -->
+                <form id="login-form" onsubmit="handleLogin(event)" class="space-y-5">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Email hoặc Tên đăng nhập</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400"><i class="fa-solid fa-envelope"></i></span>
+                            <input type="text" id="login-identifier" required placeholder="Nhập email hoặc tên đăng nhập..." class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Mật khẩu</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400"><i class="fa-solid fa-lock"></i></span>
+                            <input type="password" id="login-password" required placeholder="••••••••" class="w-full pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full py-3.5 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white font-bold rounded-xl shadow-lg shadow-orange-500/30 transition transform active:scale-[0.99]">
+                        Đăng Nhập Ngay <i class="fa-solid fa-arrow-right ml-2"></i>
+                    </button>
+                </form>
+
+                <!-- Form Đăng Ký -->
+                <form id="register-form" onsubmit="handleRegister(event)" class="space-y-4 hidden">
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Họ và Tên hiển thị</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400"><i class="fa-solid fa-user"></i></span>
+                            <input type="text" id="reg-name" required placeholder="VD: Nguyễn Văn A" class="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Email / Tên đăng nhập</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400"><i class="fa-solid fa-at"></i></span>
+                            <input type="text" id="reg-email" required placeholder="VD: runner@gmail.com" class="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Mật khẩu</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400"><i class="fa-solid fa-lock"></i></span>
+                            <input type="password" id="reg-password" required minlength="4" placeholder="Tối thiểu 4 ký tự" class="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:bg-white transition">
+                        </div>
+                    </div>
+
+                    <!-- Ô nhập mã Quản trị viên -->
+                    <div class="pt-1">
+                        <label class="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                            <span>Mã Quản Trị Viên (Tùy chọn)</span>
+                            <span class="text-orange-600 normal-case font-medium">Bỏ trống nếu là Runner</span>
+                        </label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-4 flex items-center text-amber-500"><i class="fa-solid fa-shield-halved"></i></span>
+                            <input type="text" id="reg-admin-code" placeholder="Nhập mã bí mật (171009) để làm Admin..." class="w-full pl-11 pr-4 py-2.5 bg-amber-50/50 border border-amber-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 focus:bg-white transition">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl shadow-lg transition transform active:scale-[0.99] mt-2">
+                        Tạo Tài Khoản <i class="fa-solid fa-user-plus ml-2"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- GIAO DIỆN CHÍNH SAU KHI ĐĂNG NHẬP          -->
+    <!-- ========================================== -->
+    <div id="app-screen" class="hidden flex-1 flex flex-col">
+        
+        <!-- Thanh điều hướng (Navbar) -->
+        <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+                <!-- Logo -->
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-orange-500 to-red-600 text-white flex items-center justify-center text-xl shadow-md shadow-orange-500/20">
+                        <i class="fa-solid fa-person-running"></i>
+                    </div>
+                    <div>
+                        <span class="text-xl font-extrabold text-slate-900 tracking-tight">RunTrack <span class="text-orange-500">VN</span></span>
+                        <span id="nav-role-badge" class="ml-2 px-2 py-0.5 text-[11px] font-bold uppercase rounded-full bg-slate-100 text-slate-600">Runner</span>
+                    </div>
+                </div>
+
+                <!-- Menu điều hướng chính (Desktop) -->
+                <nav class="hidden md:flex items-center gap-2 bg-slate-100 p-1 rounded-xl">
+                    <button onclick="switchMainView('runner')" id="nav-btn-runner" class="px-4 py-2 rounded-lg text-sm font-bold bg-white text-orange-600 shadow-sm transition">
+                        <i class="fa-solid fa-stopwatch mr-1.5"></i> Khu Vực Chạy Bộ
+                    </button>
+                    <button onclick="switchMainView('leaderboard')" id="nav-btn-leaderboard" class="px-4 py-2 rounded-lg text-sm font-bold text-slate-600 hover:text-slate-900 transition">
+                        <i class="fa-solid fa-trophy mr-1.5"></i> Bảng Xếp Hạng
+                    </button>
+                    <button onclick="switchMainView('admin')" id="nav-btn-admin" class="hidden px-4 py-2 rounded-lg text-sm font-bold text-slate-600 hover:text-slate-900 transition">
+                        <i class="fa-solid fa-shield-halved mr-1.5 text-amber-500"></i> Quản Trị Viên
+                    </button>
+                </nav>
+
+                <!-- Thông tin User & Đăng xuất -->
+                <div class="flex items-center gap-3">
+                    <div class="text-right hidden sm:block">
+                        <p id="nav-user-name" class="text-sm font-bold text-slate-800 leading-none">Người dùng</p>
+                        <p id="nav-user-email" class="text-xs text-slate-500 mt-1">email@domain.com</p>
+                    </div>
+                    <button onclick="handleLogout()" title="Đăng xuất" class="p-2.5 rounded-xl bg-slate-100 hover:bg-red-50 text-slate-600 hover:text-red-600 transition">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Menu điều hướng (Mobile) -->
+            <div class="md:hidden flex border-t border-slate-100 bg-white px-2 py-1.5 gap-1">
+                <button onclick="switchMainView('runner')" id="mob-btn-runner" class="flex-1 py-2 rounded-lg text-xs font-bold bg-orange-50 text-orange-600">
+                    <i class="fa-solid fa-stopwatch block text-base mb-0.5"></i> Chạy Bộ
+                </button>
+                <button onclick="switchMainView('leaderboard')" id="mob-btn-leaderboard" class="flex-1 py-2 rounded-lg text-xs font-bold text-slate-500">
+                    <i class="fa-solid fa-trophy block text-base mb-0.5"></i> Xếp Hạng
+                </button>
+                <button onclick="switchMainView('admin')" id="mob-btn-admin" class="hidden flex-1 py-2 rounded-lg text-xs font-bold text-slate-500">
+                    <i class="fa-solid fa-shield-halved block text-base mb-0.5 text-amber-500"></i> Quản Trị
+                </button>
+            </div>
+        </header>
+
+        <!-- Nội dung chính -->
+        <main class="max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 flex-1 space-y-6">
+
+            <!-- Banner Thử thách / Thông báo từ Admin -->
+            <div id="challenge-banner" class="bg-gradient-to-r from-sky-600 via-blue-600 to-indigo-700 rounded-2xl p-5 text-white shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div class="flex items-start gap-4">
+                    <div class="w-12 h-12 rounded-2xl bg-white/15 backdrop-blur-sm flex items-center justify-center text-2xl shrink-0">
+                        <i class="fa-solid fa-bullhorn text-amber-300"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider bg-amber-400 text-slate-900 rounded-md">Thử Thách Cộng Đồng</span>
+                            <span id="challenge-date" class="text-xs text-sky-200">Cập nhật mới nhất</span>
+                        </div>
+                        <h3 id="challenge-title" class="text-lg font-bold">Thử thách 50KM Tháng Này - Bứt Phá Giới Hạn!</h3>
+                        <p id="challenge-desc" class="text-sm text-sky-100 mt-0.5">Hoàn thành tích lũy 50km trong tháng để nhận huy hiệu Chiến Binh Đường Chạy từ Ban Quản Trị.</p>
+                    </div>
+                </div>
+                <div class="shrink-0 self-end sm:self-center">
+                    <span class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-white/15 text-xs font-semibold">
+                        <i class="fa-solid fa-fire text-orange-400"></i> Đang diễn ra
+                    </span>
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- VIEW 1: KHU VỰC CHẠY BỘ (RUNNER)           -->
+            <!-- ========================================== -->
+            <div id="view-runner" class="space-y-6">
+                
+                <!-- 4 Thẻ thống kê cá nhân -->
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-orange-100 text-orange-600 flex items-center justify-center text-xl shrink-0">
+                            <i class="fa-solid fa-route"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold text-slate-500 uppercase">Tổng Quãng Đường</p>
+                            <p class="text-2xl font-extrabold text-slate-900"><span id="stat-my-km">0.00</span> <span class="text-sm font-medium text-slate-500">km</span></p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-sky-100 text-sky-600 flex items-center justify-center text-xl shrink-0">
+                            <i class="fa-solid fa-clock"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold text-slate-500 uppercase">Tổng Thời Gian</p>
+                            <p class="text-2xl font-extrabold text-slate-900"><span id="stat-my-time">0</span> <span class="text-sm font-medium text-slate-500">phút</span></p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center text-xl shrink-0">
+                            <i class="fa-solid fa-person-running"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold text-slate-500 uppercase">Số Buổi Chạy</p>
+                            <p class="text-2xl font-extrabold text-slate-900"><span id="stat-my-runs">0</span> <span class="text-sm font-medium text-slate-500">buổi</span></p>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center text-xl shrink-0">
+                            <i class="fa-solid fa-fire-flame-curved"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-semibold text-slate-500 uppercase">Calo Tiêu Thụ</p>
+                            <p class="text-2xl font-extrabold text-slate-900"><span id="stat-my-cal">0</span> <span class="text-sm font-medium text-slate-500">kcal</span></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Grid 2 cột: Đồng hồ bấm giờ & Nhập thủ công -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    
+                    <!-- Đồng hồ bấm giờ trực tiếp (7 cột) -->
+                    <div class="lg:col-span-7 bg-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-xl relative overflow-hidden flex flex-col justify-between">
+                        <div class="flex items-center justify-between mb-6 relative z-10">
+                            <div class="flex items-center gap-2.5">
+                                <span id="live-indicator" class="w-3 h-3 rounded-full bg-slate-500"></span>
+                                <h2 class="text-lg font-bold">Đồng Hồ Chạy Trực Tiếp</h2>
+                            </div>
+                            <span class="text-xs bg-white/10 px-3 py-1 rounded-full text-slate-300">Mô phỏng GPS & Pace</span>
+                        </div>
+
+                        <!-- Hiển thị số liệu thời gian thực -->
+                        <div class="text-center my-4 relative z-10">
+                            <div id="timer-display" class="text-5xl sm:text-6xl font-black font-mono tracking-wider text-white mb-6">
+                                00:00:00
+                            </div>
+
+                            <div class="grid grid-cols-3 gap-3 bg-white/5 border border-white/10 rounded-2xl p-4">
+                                <div>
+                                    <p class="text-xs text-slate-400 uppercase font-semibold">Quãng đường</p>
+                                    <p class="text-xl sm:text-2xl font-extrabold text-orange-400 mt-1"><span id="live-distance">0.00</span> <span class="text-xs font-normal text-slate-300">km</span></p>
+                                </div>
+                                <div class="border-x border-white/10">
+                                    <p class="text-xs text-slate-400 uppercase font-semibold">Tốc độ (Pace)</p>
+                                    <p class="text-xl sm:text-2xl font-extrabold text-sky-400 mt-1"><span id="live-pace">0:00</span> <span class="text-xs font-normal text-slate-300">/km</span></p>
+                                </div>
+                                <div>
+                                    <p class="text-xs text-slate-400 uppercase font-semibold">Calo ước tính</p>
+                                    <p class="text-xl sm:text-2xl font-extrabold text-emerald-400 mt-1"><span id="live-calories">0</span> <span class="text-xs font-normal text-slate-300">kcal</span></p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Nút điều khiển đồng hồ -->
+                        <div class="flex flex-wrap items-center justify-center gap-3 mt-6 relative z-10">
+                            <button id="btn-start-timer" onclick="startTimer()" class="flex-1 min-w-[130px] py-3.5 px-5 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white font-bold rounded-2xl shadow-lg shadow-orange-500/30 transition flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-play"></i> Bắt Đầu Chạy
+                            </button>
+                            <button id="btn-pause-timer" onclick="pauseTimer()" class="hidden flex-1 min-w-[130px] py-3.5 px-5 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold rounded-2xl transition flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-pause"></i> Tạm Dừng
+                            </button>
+                            <button id="btn-stop-timer" onclick="stopAndSaveTimer()" class="hidden flex-1 min-w-[150px] py-3.5 px-5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-2xl shadow-lg shadow-emerald-500/30 transition flex items-center justify-center gap-2">
+                                <i class="fa-solid fa-flag-checkered"></i> Kết Thúc & Lưu
+                            </button>
+                            <button id="btn-reset-timer" onclick="resetTimer()" title="Đặt lại đồng hồ" class="p-3.5 bg-white/10 hover:bg-white/20 text-white rounded-2xl transition">
+                                <i class="fa-solid fa-rotate-right"></i>
+                            </button>
+                        </div>
+
+                        <i class="fa-solid fa-stopwatch absolute -bottom-10 -right-10 text-[180px] text-white/[0.03] pointer-events-none"></i>
+                    </div>
+
+                    <!-- Form Nhập Kết Quả Thủ Công (5 cột) -->
+                    <div class="lg:col-span-5 bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/80 shadow-sm flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center gap-2.5 mb-5">
+                                <div class="w-9 h-9 rounded-xl bg-sky-100 text-sky-600 flex items-center justify-center">
+                                    <i class="fa-solid fa-pen-to-square"></i>
+                                </div>
+                                <div>
+                                    <h2 class="text-lg font-bold text-slate-900">Ghi Nhận Thủ Công</h2>
+                                    <p class="text-xs text-slate-500">Nhập kết quả từ đồng hồ thông minh hoặc máy chạy bộ</p>
+                                </div>
+                            </div>
+
+                            <form id="manual-run-form" onsubmit="handleManualRun(event)" class="space-y-4">
+                                <div class="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-600 mb-1.5">Quãng đường (km)</label>
+                                        <input type="number" id="manual-km" step="0.01" min="0.1" max="200" required placeholder="VD: 5.2" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-sky-500 focus:bg-white">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-bold text-slate-600 mb-1.5">Thời gian (phút)</label>
+                                        <input type="number" id="manual-minutes" step="1" min="1" max="1440" required placeholder="VD: 30" class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-sky-500 focus:bg-white">
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 mb-1.5">Ngày chạy</label>
+                                    <input type="date" id="manual-date" required class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:bg-white">
+                                </div>
+
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-600 mb-1.5">Ghi chú cung đường / cảm nhận</label>
+                                    <input type="text" id="manual-note" placeholder="VD: Chạy sáng quanh công viên..." class="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:bg-white">
+                                </div>
+
+                                <button type="submit" class="w-full py-3 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl shadow-md shadow-sky-600/20 transition mt-2">
+                                    <i class="fa-solid fa-plus mr-1.5"></i> Lưu Buổi Chạy
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Lịch sử chạy bộ cá nhân -->
+                <div class="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden">
+                    <div class="p-6 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div>
+                            <h3 class="text-lg font-bold text-slate-900">Lịch Sử Chạy Bộ Của Bạn</h3>
+                            <p class="text-xs text-slate-500">Danh sách các hoạt động đã ghi nhận gần đây</p>
+                        </div>
+                        <span id="my-history-count" class="text-xs font-bold px-3 py-1 bg-slate-100 text-slate-600 rounded-full self-start sm:self-center">0 hoạt động</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                                    <th class="py-3.5 px-6 font-bold">Ngày</th>
+                                    <th class="py-3.5 px-6 font-bold">Quãng đường</th>
+                                    <th class="py-3.5 px-6 font-bold">Thời gian</th>
+                                    <th class="py-3.5 px-6 font-bold">Pace TB</th>
+                                    <th class="py-3.5 px-6 font-bold">Calo</th>
+                                    <th class="py-3.5 px-6 font-bold">Ghi chú</th>
+                                    <th class="py-3.5 px-6 font-bold">Trạng thái</th>
+                                </tr>
+                            </thead>
+                            <tbody id="my-runs-tbody" class="divide-y divide-slate-100 text-sm">
+                                <!-- Dữ liệu render bằng JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- VIEW 2: BẢNG XẾP HẠNG (LEADERBOARD)        -->
+            <!-- ========================================== -->
+            <div id="view-leaderboard" class="hidden space-y-6">
+                <div class="bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden">
+                    <div class="p-6 sm:p-8 bg-gradient-to-r from-slate-900 to-slate-800 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-2xl font-extrabold flex items-center gap-2.5">
+                                <i class="fa-solid fa-trophy text-amber-400"></i> Bảng Xếp Hạng Runner
+                            </h2>
+                            <p class="text-slate-300 text-sm mt-1">Xếp hạng dựa trên tổng quãng đường chạy hợp lệ của các thành viên</p>
+                        </div>
+                        <div class="bg-white/10 px-4 py-2 rounded-xl text-xs font-semibold text-amber-300">
+                            Cập nhật thời gian thực
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                                    <th class="py-4 px-6 font-bold w-20 text-center">Hạng</th>
+                                    <th class="py-4 px-6 font-bold">Vận động viên</th>
+                                    <th class="py-4 px-6 font-bold">Số buổi chạy</th>
+                                    <th class="py-4 px-6 font-bold">Tổng thời gian</th>
+                                    <th class="py-4 px-6 font-bold text-right">Tổng Quãng Đường</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leaderboard-tbody" class="divide-y divide-slate-100 text-sm">
+                                <!-- Dữ liệu render bằng JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ========================================== -->
+            <!-- VIEW 3: QUẢN TRỊ VIÊN (ADMIN PANEL)        -->
+            <!-- ========================================== -->
+            <div id="view-admin" class="hidden space-y-6">
+                
+                <!-- Header Admin -->
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-amber-50 border border-amber-200 rounded-2xl p-5">
+                    <div class="flex items-center gap-3">
+                        <div class="w-11 h-11 rounded-xl bg-amber-500 text-white flex items-center justify-center text-xl shadow-sm">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-lg font-extrabold text-slate-900">Trung Tâm Quản Trị Hệ Thống</h2>
+                            <p class="text-xs text-slate-600">Quản lý thành viên, kiểm duyệt hoạt động chạy bộ và phát hành thử thách.</p>
+                        </div>
+                    </div>
+                    <span class="px-3 py-1 bg-amber-200/70 text-amber-900 text-xs font-bold rounded-lg self-start sm:self-center">
+                        Mã xác thực Admin: #171009
+                    </span>
+                </div>
+
+                <!-- Thống kê toàn hệ thống -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <p class="text-xs font-bold text-slate-400 uppercase">Tổng Thành Viên</p>
+                        <div class="flex items-end justify-between mt-2">
+                            <p id="admin-stat-users" class="text-3xl font-black text-slate-900">0</p>
+                            <span class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center"><i class="fa-solid fa-users"></i></span>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <p class="text-xs font-bold text-slate-400 uppercase">Tổng Km Toàn Hệ Thống</p>
+                        <div class="flex items-end justify-between mt-2">
+                            <p class="text-3xl font-black text-orange-600"><span id="admin-stat-km">0.0</span> <span class="text-base font-bold">km</span></p>
+                            <span class="w-10 h-10 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center"><i class="fa-solid fa-road"></i></span>
+                        </div>
+                    </div>
+                    <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                        <p class="text-xs font-bold text-slate-400 uppercase">Tổng Số Buổi Chạy</p>
+                        <div class="flex items-end justify-between mt-2">
+                            <p id="admin-stat-runs" class="text-3xl font-black text-emerald-600">0</p>
+                            <span class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center"><i class="fa-solid fa-list-check"></i></span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tạo thử thách / Thông báo chung -->
+                <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+                    <h3 class="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+                        <i class="fa-solid fa-bullhorn text-sky-600"></i> Cập Nhật Thử Thách / Thông Báo Trang Chủ
+                    </h3>
+                    <form onsubmit="handleUpdateChallenge(event)" class="grid grid-cols-1 md:grid-cols-12 gap-4">
+                        <div class="md:col-span-4">
+                            <input type="text" id="admin-challenge-title" required placeholder="Tiêu đề thử thách..." class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-sky-500">
+                        </div>
+                        <div class="md:col-span-6">
+                            <input type="text" id="admin-challenge-desc" required placeholder="Nội dung mô tả chi tiết cho toàn bộ thành viên..." class="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-sky-500">
+                        </div>
+                        <div class="md:col-span-2">
+                            <button type="submit" class="w-full h-full py-2.5 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl text-sm transition">
+                                Đăng Thông Báo
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Quản lý thành viên -->
+                <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="p-6 border-b border-slate-100">
+                        <h3 class="text-lg font-bold text-slate-900">Quản Lý Thành Viên</h3>
+                        <p class="text-xs text-slate-500">Cấp quyền quản trị viên hoặc xóa tài khoản vi phạm</p>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                                    <th class="py-3.5 px-6 font-bold">Thành viên</th>
+                                    <th class="py-3.5 px-6 font-bold">Email / Tài khoản</th>
+                                    <th class="py-3.5 px-6 font-bold">Vai trò</th>
+                                    <th class="py-3.5 px-6 font-bold">Tổng Km</th>
+                                    <th class="py-3.5 px-6 font-bold text-right">Hành động</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-users-tbody" class="divide-y divide-slate-100 text-sm">
+                                <!-- Render JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Kiểm duyệt hoạt động chạy bộ -->
+                <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div class="p-6 border-b border-slate-100">
+                        <h3 class="text-lg font-bold text-slate-900">Kiểm Duyệt Hoạt Động Chạy Bộ Toàn Hệ Thống</h3>
+                        <p class="text-xs text-slate-500">Xác minh thành tích hợp lệ hoặc xóa các bản ghi gian lận</p>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                                    <th class="py-3.5 px-6 font-bold">Runner</th>
+                                    <th class="py-3.5 px-6 font-bold">Ngày</th>
+                                    <th class="py-3.5 px-6 font-bold">Quãng đường</th>
+                                    <th class="py-3.5 px-6 font-bold">Thời gian / Pace</th>
+                                    <th class="py-3.5 px-6 font-bold">Trạng thái</th>
+                                    <th class="py-3.5 px-6 font-bold text-right">Kiểm duyệt</th>
+                                </tr>
+                            </thead>
+                            <tbody id="admin-runs-tbody" class="divide-y divide-slate-100 text-sm">
+                                <!-- Render JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-white border-t border-slate-200 py-5 mt-12">
+            <div class="max-w-7xl mx-auto px-4 text-center text-xs text-slate-500">
+                &copy; 2026 <strong>RunTrack VN</strong> - Cộng đồng chạy bộ Việt Nam. Hệ thống quản trị bảo mật mã #171009.
+            </div>
+        </footer>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- LOGIC JAVASCRIPT TOÀN BỘ ỨNG DỤNG          -->
+    <!-- ========================================== -->
+    <script>
+        // --- CẤU HÌNH & HẰNG SỐ ---
+        const ADMIN_SECRET_CODE = '171009';
+        const STORAGE_KEYS = {
+            USERS: 'runtrack_users_v1',
+            RUNS: 'runtrack_runs_v1',
+            SESSION: 'runtrack_session_v1',
+            CHALLENGE: 'runtrack_challenge_v1'
+        };
+
+        // --- TRẠNG THÁI ỨNG DỤNG ---
+        let currentUser = null;
+        let timerInterval = null;
+        let timerSeconds = 0;
+        let liveDistanceKm = 0;
+        let isTimerRunning = false;
+
+        // --- KHỞI TẠO DỮ LIỆU MẪU BAN ĐẦU ---
+        function initSampleData() {
+            if (!localStorage.getItem(STORAGE_KEYS.USERS)) {
+                const sampleUsers = [
+                    { id: 'u1', name: 'Quản Trị Viên Chính', email: 'admin@run.vn', password: '123456', role: 'admin' },
+                    { id: 'u2', name: 'Trần Minh Tuấn', email: 'tuan.runner@gmail.com', password: '123456', role: 'runner' },
+                    { id: 'u3', name: 'Lê Thu Hà', email: 'thuha.run@gmail.com', password: '123456', role: 'runner' },
+                    { id: 'u4', name: 'Phạm Hoàng Nam', email: 'nam.marathon@gmail.com', password: '123456', role: 'runner' }
+                ];
+                localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(sampleUsers));
+            }
+
+            if (!localStorage.getItem(STORAGE_KEYS.RUNS)) {
+                const today = new Date().toISOString().split('T')[0];
+                const sampleRuns = [
+                    { id: 'r1', userId: 'u2', date: today, distance: 12.5, durationMinutes: 65, calories: 780, note: 'Chạy dài cuối tuần Hồ Tây', verified: true },
+                    { id: 'r2', userId: 'u3', date: today, distance: 8.2, durationMinutes: 46, calories: 510, note: 'Chạy nhẹ buổi sáng', verified: true },
+                    { id: 'r3', userId: 'u4', date: '2026-11-17', distance: 21.1, durationMinutes: 112, calories: 1320, note: 'Hoàn thành Half Marathon!', verified: true },
+                    { id: 'r4', userId: 'u1', date: '2026-11-18', distance: 6.0, durationMinutes: 32, calories: 375, note: 'Khởi động tuần mới', verified: true },
+                    { id: 'r5', userId: 'u2', date: '2026-11-16', distance: 5.5, durationMinutes: 28, calories: 340, note: 'Chạy biến tốc Tempo', verified: false }
+                ];
+                localStorage.setItem(STORAGE_KEYS.RUNS, JSON.stringify(sampleRuns));
+            }
+
+            if (!localStorage.getItem(STORAGE_KEYS.CHALLENGE)) {
+                const defaultChallenge = {
+                    title: 'Thử thách 50KM Tháng Này - Bứt Phá Giới Hạn!',
+                    desc: 'Hoàn thành tích lũy 50km trong tháng để nhận huy hiệu Chiến Binh Đường Chạy từ Ban Quản Trị.',
+                    updatedAt: new Date().toLocaleDateString('vi-VN')
+                };
+                localStorage.setItem(STORAGE_KEYS.CHALLENGE, JSON.stringify(defaultChallenge));
+            }
+        }
+
+        // --- TIỆN ÍCH ĐỌC/GHI STORAGE ---
+        const getUsers = () => JSON.parse(localStorage.getItem(STORAGE_KEYS.USERS) || '[]');
+        const saveUsers = (users) => localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(users));
+        const getRuns = () => JSON.parse(localStorage.getItem(STORAGE_KEYS.RUNS) || '[]');
+        const saveRuns = (runs) => localStorage.setItem(STORAGE_KEYS.RUNS, JSON.stringify(runs));
+        const getChallenge = () => JSON.parse(localStorage.getItem(STORAGE_KEYS.CHALLENGE) || '{}');
+
+        // --- HỆ THỐNG THÔNG BÁO TOAST & CONFIRM ---
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const colors = {
+                success: 'bg-emerald-600 text-white',
+                error: 'bg-red-600 text-white',
+                info: 'bg-slate-800 text-white',
+                warning: 'bg-amber-500 text-slate-900'
+            };
+            const icons = {
+                success: 'fa-circle-check',
+                error: 'fa-circle-xmark',
+                info: 'fa-circle-info',
+                warning: 'fa-triangle-exclamation'
+            };
+            toast.className = `${colors[type]} px-4 py-3 rounded-xl shadow-xl flex items-center gap-3 text-sm font-semibold pointer-events-auto transform transition-all duration-300 translate-y-0 opacity-100`;
+            toast.innerHTML = `<i class="fa-solid ${icons[type]} text-base"></i><span>${message}</span>`;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', '-translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function customConfirm(title, message, onConfirm) {
+            const modal = document.getElementById('confirm-modal');
+            document.getElementById('confirm-title').textContent = title;
+            document.getElementById('confirm-message').textContent = message;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+
+            const cleanup = () => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            };
+
+            document.getElementById('confirm-cancel-btn').onclick = cleanup;
+            document.getElementById('confirm-ok-btn').onclick = () => {
+                cleanup();
+                onConfirm();
+            };
+        }
+
+        // --- XÁC THỰC: ĐĂNG KÝ / ĐĂNG NHẬP / ĐĂNG XUẤT ---
+        function switchAuthTab(tab) {
+            const loginForm = document.getElementById('login-form');
+            const regForm = document.getElementById('register-form');
+            const tabLogin = document.getElementById('tab-login-btn');
+            const tabReg = document.getElementById('tab-register-btn');
+
+            if (tab === 'login') {
+                loginForm.classList.remove('hidden');
+                regForm.classList.add('hidden');
+                tabLogin.className = 'flex-1 py-2.5 text-sm font-bold rounded-xl bg-white text-slate-900 shadow-sm transition';
+                tabReg.className = 'flex-1 py-2.5 text-sm font-bold rounded-xl text-slate-500 hover:text-slate-800 transition';
+            } else {
+                loginForm.classList.add('hidden');
+                regForm.classList.remove('hidden');
+                tabReg.className = 'flex-1 py-2.5 text-sm font-bold rounded-xl bg-white text-slate-900 shadow-sm transition';
+                tabLogin.className = 'flex-1 py-2.5 text-sm font-bold rounded-xl text-slate-500 hover:text-slate-800 transition';
+            }
+        }
+
+        function handleRegister(e) {
+            e.preventDefault();
+            const name = document.getElementById('reg-name').value.trim();
+            const email = document.getElementById('reg-email').value.trim().toLowerCase();
+            const password = document.getElementById('reg-password').value;
+            const adminCode = document.getElementById('reg-admin-code').value.trim();
+
+            const users = getUsers();
+            if (users.some(u => u.email.toLowerCase() === email)) {
+                showToast('Email hoặc tên đăng nhập này đã tồn tại!', 'error');
+                return;
+            }
+
+            let role = 'runner';
+            if (adminCode !== '') {
+                if (adminCode === ADMIN_SECRET_CODE) {
+                    role = 'admin';
+                } else {
+                    showToast('Mã Quản trị viên không chính xác! Vui lòng kiểm tra lại.', 'error');
+                    return;
+                }
+            }
+
+            const newUser = {
+                id: 'u_' + Date.now(),
+                name,
+                email,
+                password,
+                role
+            };
+
+            users.push(newUser);
+            saveUsers(users);
+            loginSuccess(newUser);
+            showToast(role === 'admin' ? 'Đăng ký thành công với quyền Quản Trị Viên!' : 'Đăng ký tài khoản Runner thành công!', 'success');
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const identifier = document.getElementById('login-identifier').value.trim().toLowerCase();
+            const password = document.getElementById('login-password').value;
+
+            const users = getUsers();
+            const foundUser = users.find(u => 
+                (u.email.toLowerCase() === identifier || u.name.toLowerCase() === identifier) && 
+                u.password === password
+            );
+
+            if (!foundUser) {
+                showToast('Sai thông tin đăng nhập hoặc mật khẩu!', 'error');
+                return;
+            }
+
+            loginSuccess(foundUser);
+            showToast(`Chào mừng trở lại, ${foundUser.name}!`, 'success');
+        }
+
+        function loginSuccess(user) {
+            currentUser = user;
+            localStorage.setItem(STORAGE_KEYS.SESSION, JSON.stringify(user));
+
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('app-screen').classList.remove('hidden');
+
+            // Cập nhật thông tin Navbar
+            document.getElementById('nav-user-name').textContent = user.name;
+            document.getElementById('nav-user-email').textContent = user.email;
+
+            const roleBadge = document.getElementById('nav-role-badge');
+            const adminNavBtn = document.getElementById('nav-btn-admin');
+            const adminMobBtn = document.getElementById('mob-btn-admin');
+
+            if (user.role === 'admin') {
+                roleBadge.textContent = 'Quản Trị Viên';
+                roleBadge.className = 'ml-2 px-2.5 py-0.5 text-[11px] font-extrabold uppercase rounded-full bg-amber-100 text-amber-800 border border-amber-300';
+                adminNavBtn.classList.remove('hidden');
+                adminMobBtn.classList.remove('hidden');
+            } else {
+                roleBadge.textContent = 'Runner';
+                roleBadge.className = 'ml-2 px-2.5 py-0.5 text-[11px] font-bold uppercase rounded-full bg-sky-100 text-sky-700';
+                adminNavBtn.classList.add('hidden');
+                adminMobBtn.classList.add('hidden');
+            }
+
+            // Đặt ngày mặc định cho form thủ công
+            document.getElementById('manual-date').value = new Date().toISOString().split('T')[0];
+
+            switchMainView('runner');
+            refreshAllData();
+        }
+
+        function handleLogout() {
+            if (isTimerRunning) pauseTimer();
+            currentUser = null;
+            localStorage.removeItem(STORAGE_KEYS.SESSION);
+            document.getElementById('app-screen').classList.add('hidden');
+            document.getElementById('auth-screen').classList.remove('hidden');
+            document.getElementById('login-form').reset();
+            document.getElementById('register-form').reset();
+            showToast('Đã đăng xuất khỏi hệ thống.', 'info');
+        }
+
+        // --- CHUYỂN TAB GIAO DIỆN CHÍNH ---
+        function switchMainView(viewName) {
+            if (viewName === 'admin' && currentUser?.role !== 'admin') {
+                showToast('Bạn không có quyền truy cập khu vực Quản trị!', 'error');
+                return;
+            }
+
+            ['runner', 'leaderboard', 'admin'].forEach(v => {
+                document.getElementById(`view-${v}`).classList.add('hidden');
+                
+                const deskBtn = document.getElementById(`nav-btn-${v}`);
+                const mobBtn = document.getElementById(`mob-btn-${v}`);
+                if (deskBtn) deskBtn.className = (v === 'admin' && currentUser?.role !== 'admin') ? 'hidden' : 'px-4 py-2 rounded-lg text-sm font-bold text-slate-600 hover:text-slate-900 transition';
+                if (mobBtn) mobBtn.className = (v === 'admin' && currentUser?.role !== 'admin') ? 'hidden' : 'flex-1 py-2 rounded-lg text-xs font-bold text-slate-500';
+            });
+
+            document.getElementById(`view-${viewName}`).classList.remove('hidden');
+            const activeDesk = document.getElementById(`nav-btn-${viewName}`);
+            const activeMob = document.getElementById(`mob-btn-${viewName}`);
+            if (activeDesk) activeDesk.className = 'px-4 py-2 rounded-lg text-sm font-bold bg-white text-orange-600 shadow-sm transition';
+            if (activeMob) activeMob.className = 'flex-1 py-2 rounded-lg text-xs font-bold bg-orange-50 text-orange-600';
+
+            refreshAllData();
+        }
+
+        // --- ĐỒNG HỒ BẤM GIỜ CHẠY TRỰC TIẾP ---
+        function formatSeconds(totalSec) {
+            const hrs = Math.floor(totalSec / 3600).toString().padStart(2, '0');
+            const mins = Math.floor((totalSec % 3600) / 60).toString().padStart(2, '0');
+            const secs = (totalSec % 60).toString().padStart(2, '0');
+            return `${hrs}:${mins}:${secs}`;
+        }
+
+        function calculatePace(distanceKm, durationMinutes) {
+            if (!distanceKm || distanceKm <= 0) return '0:00';
+            const paceDecimal = durationMinutes / distanceKm;
+            const paceMin = Math.floor(paceDecimal);
+            const paceSec = Math.round((paceDecimal - paceMin) * 60).toString().padStart(2, '0');
+            return `${paceMin}:${paceSec}`;
+        }
+
+        function updateTimerUI() {
+            document.getElementById('timer-display').textContent = formatSeconds(timerSeconds);
+            document.getElementById('live-distance').textContent = liveDistanceKm.toFixed(2);
+            
+            const durationMins = timerSeconds / 60;
+            document.getElementById('live-pace').textContent = calculatePace(liveDistanceKm, durationMins);
+            
+            // Ước tính ~62 kcal / km
+            const cal = Math.round(liveDistanceKm * 62);
+            document.getElementById('live-calories').textContent = cal;
+        }
+
+        function startTimer() {
+            if (isTimerRunning) return;
+            isTimerRunning = true;
+
+            document.getElementById('btn-start-timer').classList.add('hidden');
+            document.getElementById('btn-pause-timer').classList.remove('hidden');
+            document.getElementById('btn-stop-timer').classList.remove('hidden');
+            document.getElementById('live-indicator').className = 'w-3 h-3 rounded-full bg-emerald-400 animate-ping';
+
+            timerInterval = setInterval(() => {
+                timerSeconds++;
+                // Mô phỏng tốc độ chạy thực tế ~ 10 - 11.5 km/h (khoảng 0.003 km/giây)
+                const randomStep = (0.0028 + Math.random() * 0.0006);
+                liveDistanceKm += randomStep;
+                updateTimerUI();
+            }, 1000);
+        }
+
+        function pauseTimer() {
+            isTimerRunning = false;
+            clearInterval(timerInterval);
+            document.getElementById('btn-start-timer').classList.remove('hidden');
+            document.getElementById('btn-start-timer').innerHTML = '<i class="fa-solid fa-play"></i> Tiếp Tục';
+            document.getElementById('btn-pause-timer').classList.add('hidden');
+            document.getElementById('live-indicator').className = 'w-3 h-3 rounded-full bg-amber-400';
+        }
+
+        function resetTimer() {
+            pauseTimer();
+            timerSeconds = 0;
+            liveDistanceKm = 0;
+            document.getElementById('btn-start-timer').innerHTML = '<i class="fa-solid fa-play"></i> Bắt Đầu Chạy';
+            document.getElementById('btn-stop-timer').classList.add('hidden');
+            document.getElementById('live-indicator').className = 'w-3 h-3 rounded-full bg-slate-500';
+            updateTimerUI();
+        }
+
+        function stopAndSaveTimer() {
+            pauseTimer();
+            if (timerSeconds < 5) {
+                showToast('Thời gian chạy quá ngắn để lưu (tối thiểu 5 giây)!', 'warning');
+                return;
+            }
+
+            const finalKm = Math.max(0.05, parseFloat(liveDistanceKm.toFixed(2)));
+            const finalMins = Math.max(1, Math.round(timerSeconds / 60));
+            const calories = Math.round(finalKm * 62);
+
+            const newRun = {
+                id: 'r_' + Date.now(),
+                userId: currentUser.id,
+                date: new Date().toISOString().split('T')[0],
+                distance: finalKm,
+                durationMinutes: finalMins,
+                calories: calories,
+                note: 'Ghi nhận trực tiếp bằng đồng hồ GPS',
+                verified: true
+            };
+
+            const runs = getRuns();
+            runs.unshift(newRun);
+            saveRuns(runs);
+
+            resetTimer();
+            refreshAllData();
+            showToast(`Đã lưu buổi chạy ${finalKm} km thành công!`, 'success');
+        }
+
+        // --- NHẬP THỦ CÔNG BUỔI CHẠY ---
+        function handleManualRun(e) {
+            e.preventDefault();
+            const km = parseFloat(document.getElementById('manual-km').value);
+            const mins = parseInt(document.getElementById('manual-minutes').value, 10);
+            const date = document.getElementById('manual-date').value;
+            const note = document.getElementById('manual-note').value.trim() || 'Nhập thủ công';
+
+            if (km <= 0 || mins <= 0) {
+                showToast('Vui lòng nhập quãng đường và thời gian hợp lệ!', 'error');
+                return;
+            }
+
+            const newRun = {
+                id: 'r_' + Date.now(),
+                userId: currentUser.id,
+                date,
+                distance: parseFloat(km.toFixed(2)),
+                durationMinutes: mins,
+                calories: Math.round(km * 62),
+                note,
+                verified: true
+            };
+
+            const runs = getRuns();
+            runs.unshift(newRun);
+            saveRuns(runs);
+
+            document.getElementById('manual-run-form').reset();
+            document.getElementById('manual-date').value = new Date().toISOString().split('T')[0];
+            refreshAllData();
+            showToast(`Đã thêm kết quả ${km} km vào lịch sử!`, 'success');
+        }
+
+        // --- CẬP NHẬT THỬ THÁCH (ADMIN) ---
+        function handleUpdateChallenge(e) {
+            e.preventDefault();
+            const title = document.getElementById('admin-challenge-title').value.trim();
+            const desc = document.getElementById('admin-challenge-desc').value.trim();
+
+            const challenge = {
+                title,
+                desc,
+                updatedAt: new Date().toLocaleDateString('vi-VN')
+            };
+
+            localStorage.setItem(STORAGE_KEYS.CHALLENGE, JSON.stringify(challenge));
+            renderChallengeBanner();
+            showToast('Đã cập nhật thử thách mới lên trang chủ!', 'success');
+        }
+
+        function renderChallengeBanner() {
+            const challenge = getChallenge();
+            if (challenge.title) {
+                document.getElementById('challenge-title').textContent = challenge.title;
+                document.getElementById('challenge-desc').textContent = challenge.desc;
+                document.getElementById('challenge-date').textContent = `Cập nhật: ${challenge.updatedAt || 'Hôm nay'}`;
+                
+                // Đồng bộ vào ô input của Admin
+                const adminTitleInput = document.getElementById('admin-challenge-title');
+                const adminDescInput = document.getElementById('admin-challenge-desc');
+                if (adminTitleInput && !adminTitleInput.value) adminTitleInput.value = challenge.title;
+                if (adminDescInput && !adminDescInput.value) adminDescInput.value = challenge.desc;
+            }
+        }
+
+        // --- HÀM QUẢN TRỊ VIÊN (ADMIN ACTIONS) ---
+        function toggleUserRole(userId) {
+            if (userId === currentUser.id) {
+                showToast('Bạn không thể tự hạ quyền của chính mình!', 'warning');
+                return;
+            }
+            const users = getUsers();
+            const target = users.find(u => u.id === userId);
+            if (!target) return;
+
+            target.role = target.role === 'admin' ? 'runner' : 'admin';
+            saveUsers(users);
+            refreshAllData();
+            showToast(`Đã cập nhật vai trò của ${target.name} thành ${target.role === 'admin' ? 'Quản Trị Viên' : 'Runner'}.`, 'success');
+        }
+
+        function deleteUser(userId) {
+            if (userId === currentUser.id) {
+                showToast('Không thể xóa tài khoản đang đăng nhập!', 'error');
+                return;
+            }
+            customConfirm(
+                'Xóa thành viên',
+                'Toàn bộ dữ liệu và lịch sử chạy bộ của thành viên này sẽ bị xóa vĩnh viễn. Tiếp tục?',
+                () => {
+                    const users = getUsers().filter(u => u.id !== userId);
+                    const runs = getRuns().filter(r => r.userId !== userId);
+                    saveUsers(users);
+                    saveRuns(runs);
+                    refreshAllData();
+                    showToast('Đã xóa thành viên khỏi hệ thống.', 'info');
+                }
+            );
+        }
+
+        function toggleVerifyRun(runId) {
+            const runs = getRuns();
+            const run = runs.find(r => r.id === runId);
+            if (!run) return;
+            run.verified = !run.verified;
+            saveRuns(runs);
+            refreshAllData();
+            showToast(run.verified ? 'Đã xác minh buổi chạy hợp lệ.' : 'Đã đánh dấu buổi chạy cần xem xét.', 'info');
+        }
+
+        function deleteRun(runId) {
+            customConfirm(
+                'Xóa hoạt động chạy bộ',
+                'Bạn có chắc chắn muốn xóa bản ghi chạy bộ này khỏi hệ thống?',
+                () => {
+                    const runs = getRuns().filter(r => r.id !== runId);
+                    saveRuns(runs);
+                    refreshAllData();
+                    showToast('Đã xóa hoạt động chạy bộ.', 'info');
+                }
+            );
+        }
+
+        // --- RENDER TOÀN BỘ DỮ LIỆU RA GIAO DIỆN ---
+        function refreshAllData() {
+            if (!currentUser) return;
+            renderChallengeBanner();
+
+            const users = getUsers();
+            const runs = getRuns();
+
+            // 1. Thống kê cá nhân & Lịch sử chạy của User hiện tại
+            const myRuns = runs.filter(r => r.userId === currentUser.id);
+            const myTotalKm = myRuns.reduce((sum, r) => sum + r.distance, 0);
+            const myTotalTime = myRuns.reduce((sum, r) => sum + r.durationMinutes, 0);
+            const myTotalCal = myRuns.reduce((sum, r) => sum + (r.calories || Math.round(r.distance * 62)), 0);
+
+            document.getElementById('stat-my-km').textContent = myTotalKm.toFixed(2);
+            document.getElementById('stat-my-time').textContent = myTotalTime;
+            document.getElementById('stat-my-runs').textContent = myRuns.length;
+            document.getElementById('stat-my-cal').textContent = myTotalCal.toLocaleString('vi-VN');
+            document.getElementById('my-history-count').textContent = `${myRuns.length} hoạt động`;
+
+            const myTbody = document.getElementById('my-runs-tbody');
+            if (myRuns.length === 0) {
+                myTbody.innerHTML = `<tr><td colspan="7" class="py-10 text-center text-slate-400">Bạn chưa có buổi chạy nào. Hãy bấm "Bắt Đầu Chạy" hoặc nhập kết quả ngay!</td></tr>`;
+            } else {
+                myTbody.innerHTML = myRuns.map(run => `
+                    <tr class="hover:bg-slate-50/80 transition">
+                        <td class="py-3.5 px-6 font-medium text-slate-700">${run.date}</td>
+                        <td class="py-3.5 px-6 font-extrabold text-orange-600">${run.distance.toFixed(2)} km</td>
+                        <td class="py-3.5 px-6 text-slate-600">${run.durationMinutes} phút</td>
+                        <td class="py-3.5 px-6 font-mono text-slate-700">${calculatePace(run.distance, run.durationMinutes)} /km</td>
+                        <td class="py-3.5 px-6 text-slate-600">${run.calories || Math.round(run.distance * 62)} kcal</td>
+                        <td class="py-3.5 px-6 text-slate-500 max-w-xs truncate">${run.note || '-'}</td>
+                        <td class="py-3.5 px-6">
+                            ${run.verified 
+                                ? '<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700"><i class="fa-solid fa-check"></i> Hợp lệ</span>'
+                                : '<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700"><i class="fa-solid fa-clock"></i> Chờ duyệt</span>'
+                            }
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+            // 2. Bảng xếp hạng (Leaderboard)
+            const leaderboardData = users.map(u => {
+                const userValidRuns = runs.filter(r => r.userId === u.id && r.verified);
+                const totalKm = userValidRuns.reduce((sum, r) => sum + r.distance, 0);
+                const totalMins = userValidRuns.reduce((sum, r) => sum + r.durationMinutes, 0);
+                return {
+                    ...u,
+                    runCount: userValidRuns.length,
+                    totalKm,
+                    totalMins
+                };
+            }).sort((a, b) => b.totalKm - a.totalKm);
+
+            const lbTbody = document.getElementById('leaderboard-tbody');
+            lbTbody.innerHTML = leaderboardData.map((item, index) => {
+                const rank = index + 1;
+                let rankBadge = `<span class="font-bold text-slate-500">#${rank}</span>`;
+                if (rank === 1) rankBadge = `<span class="w-8 h-8 rounded-full bg-amber-400 text-slate-900 font-black inline-flex items-center justify-center shadow-sm"><i class="fa-solid fa-crown"></i></span>`;
+                else if (rank === 2) rankBadge = `<span class="w-8 h-8 rounded-full bg-slate-300 text-slate-800 font-black inline-flex items-center justify-center">2</span>`;
+                else if (rank === 3) rankBadge = `<span class="w-8 h-8 rounded-full bg-orange-300 text-orange-950 font-black inline-flex items-center justify-center">3</span>`;
+
+                const isMe = item.id === currentUser.id;
+                return `
+                    <tr class="${isMe ? 'bg-orange-50/60' : 'hover:bg-slate-50'} transition">
+                        <td class="py-4 px-6 text-center">${rankBadge}</td>
+                        <td class="py-4 px-6">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-full bg-slate-800 text-white font-bold flex items-center justify-center text-sm uppercase">
+                                    ${item.name.charAt(0)}
+                                </div>
+                                <div>
+                                    <p class="font-bold text-slate-900">${item.name} ${isMe ? '<span class="ml-1.5 text-[10px] bg-orange-500 text-white px-2 py-0.5 rounded-full">Bạn</span>' : ''}</p>
+                                    <p class="text-xs text-slate-400">${item.role === 'admin' ? 'Quản Trị Viên' : 'Vận động viên'}</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="py-4 px-6 font-semibold text-slate-600">${item.runCount} buổi</td>
+                        <td class="py-4 px-6 text-slate-600">${item.totalMins} phút</td>
+                        <td class="py-4 px-6 text-right font-black text-lg text-orange-600">${item.totalKm.toFixed(2)} km</td>
+                    </tr>
+                `;
+            }).join('');
+
+            // 3. Khu vực Quản Trị Viên (Nếu là Admin)
+            if (currentUser.role === 'admin') {
+                const systemTotalKm = runs.reduce((sum, r) => sum + r.distance, 0);
+                document.getElementById('admin-stat-users').textContent = users.length;
+                document.getElementById('admin-stat-km').textContent = systemTotalKm.toFixed(1);
+                document.getElementById('admin-stat-runs').textContent = runs.length;
+
+                // Bảng quản lý thành viên
+                const adminUsersTbody = document.getElementById('admin-users-tbody');
+                adminUsersTbody.innerHTML = users.map(u => {
+                    const uKm = runs.filter(r => r.userId === u.id).reduce((s, r) => s + r.distance, 0);
+                    const isSelf = u.id === currentUser.id;
+                    return `
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="py-3.5 px-6 font-bold text-slate-800">${u.name} ${isSelf ? '(Bạn)' : ''}</td>
+                            <td class="py-3.5 px-6 text-slate-500">${u.email}</td>
+                            <td class="py-3.5 px-6">
+                                ${u.role === 'admin' 
+                                    ? '<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800">Admin</span>' 
+                                    : '<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-600">Runner</span>'}
+                            </td>
+                            <td class="py-3.5 px-6 font-bold text-slate-700">${uKm.toFixed(2)} km</td>
+                            <td class="py-3.5 px-6 text-right space-x-2">
+                                ${!isSelf ? `
+                                    <button onclick="toggleUserRole('${u.id}')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-sky-50 text-sky-700 hover:bg-sky-100 transition">
+                                        ${u.role === 'admin' ? 'Hủy Admin' : 'Cấp Admin'}
+                                    </button>
+                                    <button onclick="deleteUser('${u.id}')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-50 text-red-600 hover:bg-red-100 transition">
+                                        Xóa
+                                    </button>
+                                ` : '<span class="text-xs text-slate-400 italic">Đang đăng nhập</span>'}
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+                // Bảng kiểm duyệt hoạt động
+                const adminRunsTbody = document.getElementById('admin-runs-tbody');
+                adminRunsTbody.innerHTML = runs.map(r => {
+                    const runner = users.find(u => u.id === r.userId);
+                    return `
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="py-3.5 px-6 font-bold text-slate-800">${runner ? runner.name : 'Người dùng đã xóa'}</td>
+                            <td class="py-3.5 px-6 text-slate-500">${r.date}</td>
+                            <td class="py-3.5 px-6 font-extrabold text-orange-600">${r.distance.toFixed(2)} km</td>
+                            <td class="py-3.5 px-6 text-slate-600">${r.durationMinutes}p (${calculatePace(r.distance, r.durationMinutes)}/km)</td>
+                            <td class="py-3.5 px-6">
+                                ${r.verified 
+                                    ? '<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-700">Đã duyệt</span>'
+                                    : '<span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-700">Chưa duyệt</span>'}
+                            </td>
+                            <td class="py-3.5 px-6 text-right space-x-2">
+                                <button onclick="toggleVerifyRun('${r.id}')" class="px-3 py-1.5 rounded-lg text-xs font-bold ${r.verified ? 'bg-amber-50 text-amber-700 hover:bg-amber-100' : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'} transition">
+                                    ${r.verified ? 'Hủy duyệt' : 'Duyệt'}
+                                </button>
+                                <button onclick="deleteRun('${r.id}')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-red-50 text-red-600 hover:bg-red-100 transition">
+                                    Xóa
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        }
+
+        // --- KHỞI CHẠY KHI TẢI TRANG ---
+        window.onload = function() {
+            initSampleData();
+            const savedSession = localStorage.getItem(STORAGE_KEYS.SESSION);
+            if (savedSession) {
+                try {
+                    const parsedUser = JSON.parse(savedSession);
+                    const freshUser = getUsers().find(u => u.id === parsedUser.id);
+                    if (freshUser) {
+                        loginSuccess(freshUser);
+                    }
+                } catch (e) {
+                    localStorage.removeItem(STORAGE_KEYS.SESSION);
+                }
+            }
+        };
+    </script>
+</body>
+</html>
